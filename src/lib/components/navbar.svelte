@@ -1,7 +1,7 @@
 <script>
     import { user } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
-    import { page } from '$app/stores'; // Import page to check current route
+    import { page } from '$app/stores';
     import { slide, fade } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
 
@@ -9,15 +9,13 @@
     let mobileOpen = $state(false);
 
     const navItems = [
-        { name: 'Features', href: '/#features' }, // Added / to ensure it goes to home first
+        { name: 'Features', href: '/#features' },
         { name: 'About', href: '/#about' },
         { name: 'Contact', href: '/#contact' }
     ];
-
-    // Check if we are already on the auth page to style buttons differently or hide them (optional)
-    let isAuthPage = $derived($page.url.pathname === '/auth');
 </script>
 
+<!-- Only hide navbar if the user is LOGGED IN -->
 {#if !$user}
     <nav 
         transition:fade
@@ -25,6 +23,7 @@
     >
         <div class="mx-auto flex h-24 max-w-7xl items-center justify-between px-6 lg:px-10">
             
+            <!-- Brand -->
             <div class="flex cursor-pointer items-center gap-3 select-none group" onclick={() => goto('/')}>
                 <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 transition-transform group-hover:scale-105">
                     <span class="text-white font-black text-lg">A</span>
@@ -34,6 +33,7 @@
                 </span>
             </div>
 
+            <!-- Desktop Navigation -->
             <div class="hidden items-center gap-10 lg:flex">
                 {#each navItems as item}
                     <a
@@ -46,12 +46,15 @@
                 {/each}
             </div>
 
+            <!-- Desktop Actions -->
             <div class="hidden items-center gap-6 lg:flex">
+                <!-- Login Link -->
                 <a href="/auth?mode=login" 
                     class="text-base font-bold text-gray-600 hover:text-indigo-600 transition">
                     Log in
                 </a>
                 
+                <!-- CTA Button -->
                 <a href="/auth?mode=signup"
                    class="group relative overflow-hidden rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-7 py-2.5 text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-95">
                     <span class="relative z-10 font-bold text-sm tracking-wide">Get Started</span>
@@ -59,6 +62,7 @@
                 </a>
             </div>
 
+            <!-- Mobile Menu Toggle -->
             <button 
                 class="lg:hidden p-2 text-gray-600 hover:text-indigo-600 transition" 
                 onclick={() => (mobileOpen = !mobileOpen)}
@@ -67,6 +71,7 @@
             </button>
         </div>
 
+        <!-- Mobile Menu -->
         {#if mobileOpen}
             <div 
                 transition:slide={{ duration: 300, easing: quintOut }}
