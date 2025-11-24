@@ -6,7 +6,10 @@
     import { supabase } from '$lib/supabase';
     import { courses } from '$lib/stores/data';
     import { generateFlashcards } from '$lib/utils/ai';
+    import { fade, fly, slide, scale } from 'svelte/transition';
+    import { quintOut, elasticOut } from 'svelte/easing';
 
+    // State (Runes)
     let loading = $state(false);
     let error = $state(null);
     let showForm = $state(false);
@@ -27,36 +30,26 @@
     let flashcardSets = $state([]);
     let currentCards = $state([]);
 
-    // Function to check if the current route is public
     function isPublicRoute(path) {
         return ['/', '/auth'].includes(path);
     }
 
-    // Redirect to home if not authenticated and not on a public route
     onMount(() => {
         const unsubscribe = user.subscribe(($user) => {
-            if (!$user && !isLoading && !isPublicRoute($page.url.pathname)) {
+            if (!$user && !loading && !isPublicRoute($page.url.pathname)) {
                 goto('/');
             }
         });
-
+        loadFlashcardSets();
         return () => unsubscribe();
     });
 
-    // Load flashcard sets
     async function loadFlashcardSets() {
         try {
             loading = true;
             const { data, error: err } = await supabase
                 .from('flashcard_sets')
-                .select(`
-                    *,
-                    course:courses (
-                        id,
-                        title
-                    ),
-                    flashcards (*)
-                `)
+                .select(`*, course:courses(id, title), flashcards(*)`)
                 .eq('user_id', $user.id)
                 .order('created_at', { ascending: false });
 
@@ -69,28 +62,19 @@
         }
     }
 
-    // Generate flashcards
     async function generateFlashcardSet() {
         if (!title || !topic) {
             error = "Please provide a title and a topic";
             return;
         }
-
         try {
             generatingCards = true;
             error = null;
 
-            // Generate flashcards using AI
             let cards = await generateFlashcards(topic, content, difficulty, numCards);
-            // trim the cards to the first num_cards in case of more 
             cards.flashcards = cards.flashcards.slice(0, numCards);
-            cards = cards.flashcards
-            // console.log("client side cards : ", cards.flashcards);
-            // console.log("cards as arr : ", Array.isArray(cards.flashcards));
-            // console.log("cards : ", Array(cards.flashcards));
-            // console.log("cards obj :", Object(cards.flashcards));
+            const cardData = cards.flashcards;
 
-            // Save flashcard set
             const { data: set, error: setErr } = await supabase
                 .from('flashcard_sets')
                 .insert({
@@ -106,17 +90,8 @@
 
             if (setErr) throw setErr;
 
-            // print individual flashcards for debugging
-            for (const card of cards) {
-                console.log("question : ", card.front_content);
-                console.log("answer : ", card.back_content);
-                console.log("hint : ", card.hint);
-            }
-
-            // Save individual flashcards
-            // Insert flashcards one by one
-            for (const card of cards) {
-                const { error: setErr } = await supabase
+            for (const card of cardData) {
+                const { error: cardErr } = await supabase
                     .from('flashcards')
                     .insert({
                         set_id: set.id,
@@ -124,22 +99,12 @@
                         back_content: card.back_content,
                         hint: card.hint,
                     });
-
-                if (setErr) throw setErr;
+                if (cardErr) throw cardErr;
             }
 
-            if (setErr) throw setErr;
-
-            // Reset form
-            title = '';
-            topic = '';
-            content = '';
-            selectedCourseId = '';
-            difficulty = 'beginner';
-            numCards = 10;
-            showForm = false;
-
-            // Reload flashcard sets
+            // Reset
+            title = ''; topic = ''; content = ''; selectedCourseId = '';
+            difficulty = 'beginner'; numCards = 10; showForm = false;
             await loadFlashcardSets();
         } catch (err) {
             error = err.message;
@@ -148,7 +113,6 @@
         }
     }
 
-    // Study mode functions
     function startStudying(setId) {
         const set = flashcardSets.find(s => s.id === setId);
         if (set?.flashcards?.length) {
@@ -161,8 +125,8 @@
 
     function nextCard() {
         if (currentIndex < currentCards.length - 1) {
-            currentIndex++;
-            showAnswer = false;
+            showAnswer = false; // Flip back first
+            setTimeout(() => currentIndex++, 200); // Wait for flip
         } else {
             studyMode = false;
         }
@@ -170,246 +134,242 @@
 
     function prevCard() {
         if (currentIndex > 0) {
-            currentIndex--;
             showAnswer = false;
+            setTimeout(() => currentIndex--, 200);
         }
     }
 
-    // Delete flashcard set
     async function deleteSet(id) {
-        if (!confirm('Are you sure you want to delete this flashcard set?')) return;
-        
+        if (!confirm('Delete this flashcard set?')) return;
         try {
-            const { error: err } = await supabase
-                .from('flashcard_sets')
-                .delete()
-                .eq('id', id);
-
+            const { error: err } = await supabase.from('flashcard_sets').delete().eq('id', id);
             if (err) throw err;
             flashcardSets = flashcardSets.filter(set => set.id !== id);
         } catch (err) {
             error = err.message;
         }
     }
-
-    // Load data on mount
-    // onMount(() => {loadFlashcardSets()});
-    onMount(loadFlashcardSets);
 </script>
 
-<div class="space-y-8">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
+<div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+    <div class="absolute top-0 right-1/4 w-96 h-96 bg-yellow-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob"></div>
+    <div class="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+    <div class="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-4000"></div>
+</div>
+
+<div class="space-y-8 px-2 sm:px-0 pb-20 max-w-6xl mx-auto">
+
+    {#if !studyMode}
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 animate-fade-up">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Flashcards</h1>
-            <p class="mt-1 text-sm text-gray-500">Create and study AI-generated flashcards</p>
+            <h1 class="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent tracking-tight">
+                Flashcards
+            </h1>
+            <p class="mt-2 text-gray-600 text-lg">
+                AI-powered spaced repetition for rapid learning.
+            </p>
         </div>
         <button
             onclick={() => showForm = !showForm}
-            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+            class="group relative inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white transition-all duration-200 bg-gray-900 rounded-full hover:shadow-lg hover:-translate-y-0.5"
         >
-            {showForm ? 'Cancel' : 'Create Flashcards'}
+            {showForm ? 'Close Designer' : '✨ Create New Deck'}
         </button>
     </div>
+    {/if}
 
     {#if error}
-        <div class="rounded-md bg-red-50 p-4">
-            <p class="text-sm text-red-700">{error}</p>
+        <div transition:slide class="rounded-xl bg-red-50/90 backdrop-blur border border-red-200 p-4 text-red-700 flex items-center gap-3">
+            <span>⚠️</span> {error}
         </div>
     {/if}
 
     {#if showForm}
-        <div class="rounded-lg bg-white p-6 shadow-sm">
-            <h2 class="text-lg font-semibold text-gray-900">Create New Flashcards</h2>
-            <div class="mt-4 grid gap-6">
-                <div>
-                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-                    <input
-                        id="title"
-                        bind:value={title}
-                        type="text"
-                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        placeholder="e.g., Basic Mathematics"
-                    />
+    <div transition:slide={{duration:400, easing:quintOut}} class="relative overflow-hidden rounded-3xl bg-white/70 backdrop-blur-xl border border-white/60 shadow-xl p-6 md:p-8 animate-fade-up">
+        <div class="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-2xl"></div>
+
+        <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2 relative z-10">
+            <span class="text-2xl">🪄</span> Deck Designer
+        </h2>
+
+        <div class="space-y-6 relative z-10">
+            <div class="grid gap-6 md:grid-cols-2">
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-gray-700 ml-1">Deck Title</label>
+                    <input bind:value={title} placeholder="e.g., Biochemistry 101" 
+                        class="w-full rounded-xl border-gray-200 bg-white/50 px-4 py-3 shadow-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all"/>
                 </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-gray-700 ml-1">Link Course (Optional)</label>
+                    <select bind:value={selectedCourseId} class="w-full rounded-xl border-gray-200 bg-white/50 px-4 py-3 shadow-sm focus:ring-2 focus:ring-indigo-200 transition-all">
+                        <option value="">Independent Deck</option>
+                        {#each $courses as course}
+                            <option value={course.id}>{course.title}</option>
+                        {/each}
+                    </select>
+                </div>
+            </div>
 
-                <div class="grid gap-6 sm:grid-cols-2">
-                    <div>
-                        <label for="courseSelect" class="block text-sm font-medium text-gray-700">Course (Optional)</label>
-                        <select
-                            id="courseSelect"
-                            bind:value={selectedCourseId}
-                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        >
-                            <option value="">No course</option>
-                            {#each $courses as course}
-                                <option value={course.id}>{course.title}</option>
-                            {/each}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="difficulty" class="block text-sm font-medium text-gray-700">Difficulty</label>
-                        <select
-                            id="difficulty"
-                            bind:value={difficulty}
-                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        >
-                            <option value="beginner">Beginner</option>
-                            <option value="intermediate">Intermediate</option>
-                            <option value="advanced">Advanced</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="numCards" class="block text-sm font-medium text-gray-700">Number of Cards</label>
-                        <input
-                            id="numCards"
-                            bind:value={numCards}
-                            type="number"
-                            min="1"
-                            max="20"
-                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        />
+            <div class="grid gap-6 md:grid-cols-2">
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-gray-700 ml-1">Difficulty</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        {#each ['beginner', 'intermediate', 'advanced'] as level}
+                            <button 
+                                onclick={() => difficulty = level}
+                                class="px-3 py-2 rounded-lg text-sm font-medium transition-all capitalize
+                                {difficulty === level 
+                                    ? 'bg-indigo-600 text-white shadow-md' 
+                                    : 'bg-white/50 text-gray-600 hover:bg-white border border-transparent hover:border-indigo-100'}">
+                                {level}
+                            </button>
+                        {/each}
                     </div>
                 </div>
-
-                <div>
-                    <label for="topic" class="block text-sm font-medium text-gray-700">Topic/Content</label>
-                    <textarea
-                        id="topic"
-                        bind:value={topic}
-                        rows="4"
-                        class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                        placeholder="Enter the topic or paste content to generate flashcards from..."
-                    ></textarea>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-gray-700 ml-1">Card Count: {numCards}</label>
+                    <input type="range" min="5" max="20" bind:value={numCards} class="w-full accent-indigo-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"/>
                 </div>
+            </div>
 
-                <div class="flex justify-end">
-                    <button
-                        onclick={generateFlashcardSet}
-                        disabled={generatingCards || !title || !topic}
-                        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50"
-                    >
-                        {generatingCards ? 'Generating...' : 'Generate Flashcards'}
-                    </button>
-                </div>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-gray-700 ml-1">Topic or Source Material</label>
+                <textarea bind:value={topic} rows="3" placeholder="Paste your notes or type a topic..." 
+                    class="w-full rounded-xl border-gray-200 bg-white/50 px-4 py-3 shadow-sm focus:ring-2 focus:ring-indigo-200 transition-all resize-none"></textarea>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick={generateFlashcardSet} disabled={generatingCards || !title || !topic}
+                    class="relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-3 font-semibold text-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
+                    {#if generatingCards}
+                        <span class="flex items-center gap-2">
+                            <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+                            Generating...
+                        </span>
+                    {:else}
+                        Generate Cards ✨
+                    {/if}
+                </button>
             </div>
         </div>
+    </div>
     {/if}
 
-    <!-- Study Mode -->
     {#if studyMode && currentCards.length}
-        <div class="rounded-lg bg-white p-6 shadow-sm">
-            <div class="mb-4 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Study Mode</h2>
-                <button
-                    onclick={() => studyMode = false}
-                    class="text-sm text-gray-500 hover:text-gray-700"
-                >
-                    Exit
+        <div transition:scale={{start:0.95, duration:300}} class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-100/90 backdrop-blur-xl p-4">
+            
+            <div class="absolute top-6 left-6 right-6 flex justify-between items-center max-w-4xl mx-auto w-full">
+                <div class="flex flex-col">
+                    <h2 class="text-lg font-bold text-gray-900">Studying</h2>
+                    <span class="text-sm text-gray-500">Card {currentIndex + 1} / {currentCards.length}</span>
+                </div>
+                <button onclick={() => studyMode = false} class="p-2 rounded-full bg-white/80 hover:bg-red-50 text-gray-500 hover:text-red-600 transition shadow-sm">
+                    ✕ <span class="sr-only">Exit</span>
                 </button>
             </div>
 
-            <div class="min-h-[200px] rounded-lg bg-gray-50 p-6">
-                <div class="mb-4 text-sm text-gray-500">
-                    Card {currentIndex + 1} of {currentCards.length}
-                </div>
-                
-                <div class="space-y-4">
-                    <div class="text-lg font-medium text-gray-900">
-                        {currentCards[currentIndex].front_content}
+            <div class="absolute top-0 left-0 h-1 bg-indigo-600 transition-all duration-300" style="width: {((currentIndex + 1) / currentCards.length) * 100}%"></div>
+
+            <div class="perspective-container w-full max-w-2xl h-[400px] cursor-pointer group" onclick={() => showAnswer = !showAnswer}>
+                <div class="card-inner relative w-full h-full transition-transform duration-500 transform-style-3d {showAnswer ? 'rotate-y-180' : ''}">
+                    
+                    <div class="card-face absolute inset-0 w-full h-full backface-hidden rounded-3xl bg-white shadow-2xl flex flex-col items-center justify-center p-10 border border-gray-100">
+                        <span class="absolute top-6 left-6 text-xs font-bold tracking-widest text-indigo-400 uppercase">Question</span>
+                        <p class="text-2xl md:text-3xl font-medium text-gray-800 text-center leading-relaxed">
+                            {currentCards[currentIndex].front_content}
+                        </p>
+                        {#if currentCards[currentIndex].hint}
+                            <p class="mt-6 text-sm text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full opacity-60 group-hover:opacity-100 transition-opacity">
+                                💡 Hint available
+                            </p>
+                        {/if}
+                        <span class="absolute bottom-6 text-gray-400 text-sm opacity-50">Click to flip</span>
                     </div>
-                    
-                    {#if currentCards[currentIndex].hint && !showAnswer}
-                        <div class="mt-2 text-sm text-indigo-600">
-                            Hint: {currentCards[currentIndex].hint}
-                        </div>
-                    {/if}
-                    
-                    {#if showAnswer}
-                        <div class="mt-4 text-gray-700">
+
+                    <div class="card-face card-back absolute inset-0 w-full h-full backface-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-purple-700 shadow-2xl flex flex-col items-center justify-center p-10 text-white rotate-y-180">
+                        <span class="absolute top-6 left-6 text-xs font-bold tracking-widest text-white/60 uppercase">Answer</span>
+                        <p class="text-xl md:text-2xl font-medium text-center leading-relaxed">
                             {currentCards[currentIndex].back_content}
-                        </div>
-                    {/if}
+                        </p>
+                    </div>
+
                 </div>
             </div>
 
-            <div class="mt-6 flex items-center justify-between">
-                <button
-                    onclick={prevCard}
-                    disabled={currentIndex === 0}
-                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                    Previous
+            <div class="mt-10 flex items-center gap-6">
+                <button onclick={prevCard} disabled={currentIndex === 0}
+                    class="p-4 rounded-full bg-white shadow-lg text-gray-600 hover:text-indigo-600 hover:scale-110 transition disabled:opacity-30 disabled:hover:scale-100">
+                    ←
                 </button>
 
-                <button
-                    onclick={() => showAnswer = !showAnswer}
-                    class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-                >
+                <button onclick={() => showAnswer = !showAnswer}
+                    class="px-8 py-3 rounded-full bg-white shadow-lg font-semibold text-gray-800 hover:bg-gray-50 transition min-w-[140px]">
                     {showAnswer ? 'Hide Answer' : 'Show Answer'}
                 </button>
 
-                <button
-                    onclick={nextCard}
-                    disabled={currentIndex === currentCards.length - 1}
-                    class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                    {currentIndex === currentCards.length - 1 ? 'Finish' : 'Next'}
+                <button onclick={nextCard}
+                    class="p-4 rounded-full bg-white shadow-lg text-gray-600 hover:text-indigo-600 hover:scale-110 transition">
+                    {currentIndex === currentCards.length - 1 ? 'Finish' : '→'}
                 </button>
             </div>
+
         </div>
     {/if}
 
-    <!-- Flashcard Sets List -->
     {#if !studyMode}
         {#if loading}
-            <div class="flex items-center justify-center py-12">
-                <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600"></div>
+             <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {#each Array(3) as _}
+                    <div class="h-48 rounded-2xl bg-white/40 animate-pulse"></div>
+                {/each}
             </div>
         {:else if flashcardSets.length === 0}
-            <div class="rounded-lg bg-gray-50 p-8 text-center">
-                <h3 class="text-lg font-medium text-gray-900">No flashcard sets yet</h3>
-                <p class="mt-2 text-sm text-gray-500">
-                    Create your first set of flashcards to start studying.
-                </p>
+            <div class="rounded-3xl border border-dashed border-gray-300 bg-white/30 p-12 text-center">
+                <div class="text-4xl mb-4">📇</div>
+                <h3 class="text-xl font-bold text-gray-900">No decks found</h3>
+                <p class="mt-2 text-gray-500">Create your first AI flashcard deck to start learning.</p>
             </div>
         {:else}
             <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {#each flashcardSets as set (set.id)}
-                    <div class="group relative overflow-hidden rounded-lg bg-white p-6 shadow-sm transition-all hover:shadow-md">
-                        <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-100">
-                            <button
-                                onclick={() => deleteSet(set.id)}
-                                class="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                                aria-label="Delete set"
-                            >
-                                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
+                {#each flashcardSets as set, i (set.id)}
+                    <div class="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md border border-white/40 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl p-6 flex flex-col justify-between h-full animate-fade-up"
+                        style="animation-delay: {i * 100}ms">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 -translate-x-[100%] group-hover:opacity-100 group-hover:translate-x-[100%] transition duration-[1.2s] pointer-events-none z-10"></div>
+
+                        <button onclick={(e) => { e.stopPropagation(); deleteSet(set.id); }}
+                            class="absolute top-4 right-4 p-2 rounded-lg bg-white/80 hover:bg-red-50 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition z-20">
+                            🗑️
+                        </button>
+
+                        <div>
+                            <div class="flex gap-2 mb-3">
+                                <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-600/20">
+                                    {set.flashcards?.length || 0} Cards
+                                </span>
+                                {#if set.course}
+                                    <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset bg-purple-50 text-purple-700 ring-purple-600/20">
+                                        📚 {set.course.title}
+                                    </span>
+                                {/if}
+                            </div>
+                            
+                            <h3 class="text-xl font-bold text-gray-900 leading-snug group-hover:text-indigo-600 transition-colors">
+                                {set.title}
+                            </h3>
+                            <p class="text-sm text-gray-500 mt-2 line-clamp-2">
+                                {set.description || "No description provided."}
+                            </p>
                         </div>
-                        
-                        <h3 class="text-lg font-medium text-gray-900">{set.title}</h3>
-                        {#if set.course}
-                            <p class="mt-1 text-sm text-indigo-600">{set.course.title}</p>
-                        {/if}
-                        
-                        <div class="mt-4 flex items-center justify-between">
-                            <span class="text-sm text-gray-500">
-                                {set.flashcards?.length || 0} cards
+
+                        <div class="mt-6 pt-4 border-t border-gray-100/50 flex items-center justify-between">
+                            <span class="text-xs text-gray-400">
+                                {new Date(set.created_at).toLocaleDateString()}
                             </span>
-                            <button
-                                onclick={() => startStudying(set.id)}
-                                class="rounded-lg bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-600 hover:bg-indigo-100"
-                            >
-                                Study Now
+                            <button onclick={() => startStudying(set.id)}
+                                class="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold shadow-md hover:bg-indigo-600 transition z-20">
+                                Study Now →
                             </button>
-                        </div>
-                        
-                        <div class="mt-2 text-sm text-gray-500">
-                            Last studied: {set.last_reviewed ? new Date(set.last_reviewed).toLocaleDateString() : 'Never'}
                         </div>
                     </div>
                 {/each}
@@ -417,3 +377,22 @@
         {/if}
     {/if}
 </div>
+
+<style>
+    /* 3D Flip Mechanics */
+    .perspective-container {
+        perspective: 1000px;
+    }
+    .transform-style-3d {
+        transform-style: preserve-3d;
+    }
+    .backface-hidden {
+        backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+        transform: rotateY(180deg);
+    }
+    .card-back {
+        transform: rotateY(180deg);
+    }
+</style>

@@ -8,7 +8,7 @@
 
 @layer components {
     .gradient-text {
-      @apply bg-gradient-to-r from-indigo-600 to-purple-600 hover:hue-rotate-60 duration-700 bg-clip-text text-transparent;
+        @apply bg-gradient-to-r from-indigo-600 to-purple-600 hover:hue-rotate-60 duration-700 bg-clip-text text-transparent;
     }
 }
 
@@ -35,29 +35,50 @@ html {
     scroll-behavior: smooth;
 }
 
+/* --- Animations (Required for Glass & Glow System) --- */
+
 @keyframes blob {
-  0%, 100% { transform: translate(0px, 0px) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
+    0%, 100% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
 }
 .animate-blob { animation: blob 12s infinite; }
 .animation-delay-2000 { animation-delay: 2s; }
 .animation-delay-4000 { animation-delay: 4s; }
 
 @keyframes fade-up {
-  0% { opacity: 0; transform: translateY(25px); }
-  100% { opacity: 1; transform: translateY(0); }
+    0% { opacity: 0; transform: translateY(25px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-up { animation: fade-up .6s ease forwards; }
 
+@keyframes fade-down {
+    0% { opacity: 0; transform: translateY(-10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-down { animation: fade-down .3s ease forwards; }
+
 @keyframes gradient {
-  0% { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(30deg); }
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(30deg); }
 }
 .animate-gradient { animation: gradient 6s infinite alternate; }
 
-@keyframes fade-down {
-  0% { opacity: 0; transform: translateY(-10px); }
-  100% { opacity: 1; transform: translateY(0); }
+@keyframes bounce-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
 }
-.animate-fade-down { animation: fade-down .3s ease forwards; }
+.animate-bounce-slow { animation: bounce-slow 3.2s infinite ease-in-out; }
+
+@keyframes float {
+    0% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+}
+.animate-float { animation: float 5s infinite ease-in-out; }
+.animate-float-delay { animation: float 6s infinite ease-in-out 1s; }
+
+/* Utility for 3D perspective used in Flashcards */
+.perspective-1000 {
+    perspective: 1000px;
+}
