@@ -10,22 +10,35 @@
     // --- State (Runes) ---
     let email = $state('');
     let password = $state('');
+    let fullName = $state(''); // ✨ New State for Name
     let loading = $state(false);
     let error = $state(null);
     let isSignUp = $state(false);
     let statusMessage = $state('');
 
+    // Redirect if already logged in
     onMount(() => {
         if ($user) goto('/');
     });
 
+    // Email/Password Handler
     async function handleAuth() {
         try {
             loading = true;
             error = null;
 
             if (isSignUp) {
-                const { error: err } = await supabase.auth.signUp({ email, password });
+                // ✨ Pass full_name to Supabase metadata
+                const { error: err } = await supabase.auth.signUp({ 
+                    email, 
+                    password,
+                    options: {
+                        data: {
+                            full_name: fullName
+                        }
+                    }
+                });
+                
                 if (err) throw err;
                 statusMessage = 'Check your email for a confirmation link';
             } else {
@@ -42,12 +55,15 @@
         }
     }
 
+    // ⚡️ Google Auth Handler
     async function handleGoogleAuth() {
         try {
             loading = true;
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: window.location.origin }
+                options: { 
+                    redirectTo: window.location.origin 
+                }
             });
             if (error) throw error;
         } catch (err) {
@@ -60,18 +76,22 @@
 
 <Navbar />
 
+<!-- Ambient Background -->
 <div class="fixed inset-0 -z-10 overflow-hidden bg-gray-50/50">
     <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-300/30 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob"></div>
     <div class="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-300/30 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-2000"></div>
     <div class="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-300/30 rounded-full mix-blend-multiply filter blur-[100px] opacity-70 animate-blob animation-delay-4000"></div>
 </div>
 
+<!-- Main Container -->
 <div class="flex min-h-screen items-center justify-center px-4 py-28">
     
     <div class="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center relative">
 
+        <!-- LEFT COLUMN (Inspirational Content) -->
         <div class="hidden lg:flex flex-col justify-center space-y-8 relative p-8">
             
+            <!-- Background Icon -->
             <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-10 pointer-events-none text-indigo-600 blur-3xl">
                  <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
             </div>
@@ -88,6 +108,7 @@
                 </p>
             </div>
 
+            <!-- Quote Card -->
             <div class="relative z-10 animate-fade-up" style="animation-delay: 200ms;">
                 <div class="relative overflow-hidden rounded-2xl bg-white/40 backdrop-blur-md border border-white/50 p-6 shadow-sm">
                     <div class="absolute top-4 left-4 text-4xl text-indigo-500/20 select-none">“</div>
@@ -105,18 +126,20 @@
                     </div>
                 </div>
             </div>
-
         </div>
 
-
+        <!-- RIGHT COLUMN (Auth Form) -->
         <div class="flex justify-center lg:justify-end">
             <div class="w-full max-w-md relative">
+                <!-- Decor Blurs -->
                 <div class="absolute -top-12 -left-12 w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full blur-2xl opacity-20 animate-pulse"></div>
                 <div class="absolute -bottom-12 -right-12 w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full blur-2xl opacity-20 animate-pulse animation-delay-2000"></div>
 
+                <!-- Glass Card Form -->
                 <div in:fly={{ y: 20, duration: 600, easing: quintOut }} 
                      class="relative overflow-hidden rounded-[2rem] bg-white/70 backdrop-blur-2xl border border-white/60 shadow-2xl p-8 md:p-10">
                     
+                    <!-- Heading -->
                     <div class="text-center space-y-2 mb-8">
                         <div class="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 mb-2">
                             <span class="font-black text-xl">A</span>
@@ -129,6 +152,7 @@
                         </p>
                     </div>
 
+                    <!-- Alerts -->
                     {#if statusMessage}
                         <div transition:slide class="mb-6 p-4 rounded-xl bg-green-50 border border-green-200/60 flex flex-col gap-2 text-center">
                             <p class="text-sm font-bold text-green-700">{statusMessage}</p>
@@ -146,8 +170,18 @@
                         </div>
                     {/if}
 
+                    <!-- Form -->
                     <form class="space-y-5" onsubmit={(e) => { e.preventDefault(); handleAuth(); }}>
                         
+                        <!-- ✨ Full Name Input (Only for Sign Up) -->
+                        {#if isSignUp}
+                            <div transition:slide={{ duration: 300 }} class="space-y-1.5">
+                                <label class="text-xs font-bold text-gray-500 uppercase ml-1">Full Name</label>
+                                <input bind:value={fullName} type="text" required placeholder="John Doe"
+                                    class="w-full rounded-xl border-gray-200 bg-white/50 px-4 py-3 text-gray-800 shadow-sm transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200/50 outline-none" />
+                            </div>
+                        {/if}
+
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-gray-500 uppercase ml-1">Email</label>
                             <input bind:value={email} type="email" required placeholder="you@example.com"
@@ -179,12 +213,14 @@
 
                     </form>
 
+                    <!-- Divider -->
                     <div class="relative flex items-center py-6">
                         <div class="flex-grow border-t border-gray-200/60"></div>
                         <span class="flex-shrink-0 mx-4 text-xs font-bold text-gray-400 uppercase">Or continue with</span>
                         <div class="flex-grow border-t border-gray-200/60"></div>
                     </div>
 
+                    <!-- Google Auth -->
                     <button
                         type="button"
                         onclick={handleGoogleAuth}
@@ -194,6 +230,7 @@
                         <span>Google</span>
                     </button>
 
+                    <!-- Footer Toggle -->
                     <p class="mt-8 text-center text-sm text-gray-500">
                         {isSignUp ? 'Already have an account?' : "Don't have an account?"}
                         <button onclick={() => (isSignUp = !isSignUp)} class="font-bold text-indigo-600 hover:text-indigo-700 hover:underline transition ml-1">
