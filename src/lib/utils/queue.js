@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
+import { supabase } from '$lib/supabase';
 
 const QUEUE_KEY = 'sb_request_queue';
 
@@ -29,6 +30,7 @@ export function removeFromQueue(requestId) {
 export async function processQueue() {
     let currentQueue;
     const unsubscribe = requestQueue.subscribe(value => currentQueue = value);
+    unsubscribe();
 
     for (const request of currentQueue) {
         try {
@@ -36,11 +38,8 @@ export async function processQueue() {
             removeFromQueue(request.id);
         } catch (error) {
             console.error('Error processing queued request:', error);
-            // Keep failed requests in queue for retry
         }
     }
-
-    unsubscribe();
 }
 
 async function processRequest(request) {
@@ -50,27 +49,67 @@ async function processRequest(request) {
         case 'UPDATE_ROADMAP_PROGRESS':
             await updateRoadmapProgress(data);
             break;
+        
         case 'UPDATE_COURSE':
             await updateCourse(data);
             break;
-        // Add more cases as needed
+
+        // ✅ Critical for Timer Persistence
+        case 'CREATE_POMODORO_SESSION':
+            await createPomodoroSession(data);
+            break;
+
+        case 'CREATE_STUDY_LOG':
+            await createStudyLog(data);
+            break;
+            
+        case 'UPDATE_TASK_STATUS':
+            await updateTaskStatus(data);
+            break;
     }
 }
+
+// --- DB Handlers ---
 
 async function updateRoadmapProgress({ roadmapId, progress }) {
     const { error } = await supabase
         .from('roadmaps')
         .update({ progress })
         .eq('id', roadmapId);
-
     if (error) throw error;
 }
 
 async function updateCourse(courseData) {
+    const { id, ...updates } = courseData;
     const { error } = await supabase
         .from('courses')
-        .update(courseData)
-        .eq('id', courseData.id);
-
+        .update(updates)
+        .eq('id', id);
     if (error) throw error;
+}
+
+async function createPomodoroSession(sessionData) {
+    const { error } = await supabase
+        .from('pomodoro_sessions')
+        .insert(sessionData);
+    if (error) throw error;
+}
+
+async function createStudyLog(logData) {
+    const { error } = await supabase
+        .from('study_logs')
+        .insert(logData);
+    if (error) throw error;
+}
+
+async function updateTaskStatus({ taskId, status }) {
+    const { error } = await supabase
+        .from('tasks')
+        .update({ status })
+        .eq('id', taskId);
+    if (error) throw error;
+}
+
+if (browser) {
+    window.addEventListener('online', processQueue);
 }

@@ -46,8 +46,12 @@
 
             if (result.error) throw result.error;
             
-            // Note: If you have a realtime subscription setup in your store, it updates automatically.
-            // Otherwise, you might need to manually update the local store here.
+            // ✅ FIX: Immediately update the local store
+            if (editingCourseId) {
+                courses.update(current => current.map(c => c.id === editingCourseId ? result.data : c));
+            } else {
+                courses.update(current => [result.data, ...current]);
+            }
             
             resetForm();
         } catch (err) {
@@ -64,6 +68,10 @@
             loading = true;
             const { error: err } = await supabase.from('courses').delete().eq('id', id);
             if (err) throw err;
+
+            // ✅ FIX: Immediately remove from local store
+            courses.update(current => current.filter(c => c.id !== id));
+
         } catch (err) {
             error = err.message;
         } finally {
@@ -93,6 +101,7 @@
     }
 </script>
 
+<!-- Ambient Background -->
 <div class="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
     <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob"></div>
     <div class="absolute top-40 right-1/4 w-96 h-96 bg-purple-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
@@ -101,6 +110,7 @@
 
 <div class="space-y-10 px-2 sm:px-0 pb-20 max-w-7xl mx-auto">
 
+    <!-- 🔥 Header -->
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 animate-fade-up">
         <div>
             <h1 class="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent tracking-tight">
@@ -122,14 +132,17 @@
         </button>
     </div>
 
+    <!-- ⚠️ Error -->
     {#if error}
         <div transition:slide class="rounded-xl bg-red-50/90 backdrop-blur border border-red-200 p-4 text-red-700 shadow-sm animate-fade-up">
             {error}
         </div>
     {/if}
 
+    <!-- 📝 Glass Drawer Form -->
     {#if isFormOpen}
         <div transition:slide={{duration:400, easing:quintOut}} class="relative overflow-hidden rounded-3xl bg-white/70 backdrop-blur-xl border border-white/60 shadow-xl p-6 md:p-8 animate-fade-up">
+            <!-- Decoration -->
             <div class="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-2xl"></div>
 
             <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2 relative z-10">
@@ -175,6 +188,7 @@
         </div>
     {/if}
 
+    <!-- 📚 Course Grid -->
     {#if loading && !$courses.length}
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-pulse">
             {#each Array(3) as _}
@@ -195,8 +209,10 @@
                            transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-default overflow-hidden animate-fade-up flex flex-col justify-between"
                     style="animation-delay: {i * 100}ms"
                 >
+                    <!-- Shine Effect -->
                     <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 -translate-x-[100%] group-hover:opacity-100 group-hover:translate-x-[100%] transition duration-[1.2s] pointer-events-none z-10"></div>
 
+                    <!-- Content -->
                     <div class="relative z-20">
                         <div class="flex justify-between items-start mb-2">
                             <h3 class="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2">
@@ -216,6 +232,7 @@
                         {/if}
                     </div>
 
+                    <!-- Actions -->
                     <div class="relative z-20 pt-4 border-t border-gray-100/50 flex gap-2">
                         <button onclick={() => editCourse(course)}
                             class="flex-1 rounded-xl bg-white border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm">
