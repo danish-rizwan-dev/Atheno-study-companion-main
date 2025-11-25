@@ -31,12 +31,15 @@
     }
 </script>
 
+{#if !isSidebarOpen}
 <button
+    transition:fade={{ duration: 150 }}
     class="fixed top-4 left-4 z-[60] md:hidden p-2.5 rounded-xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg text-indigo-600 transition-transform active:scale-95"
     onclick={toggleSidebar}
 >
     <span class="text-xl font-bold">☰</span>
 </button>
+{/if}
 
 {#if isSidebarOpen}
     <div 
@@ -46,14 +49,14 @@
     ></div>
 {/if}
 
-<aside class={`fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-500 cubic-bezier(0.22, 1, 0.36, 1)
+<aside class={`fixed top-0 left-0 z-50 w-64 h-[100dvh] transition-transform duration-500 cubic-bezier(0.22, 1, 0.36, 1)
     ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
     
     <div class="relative h-full w-full flex flex-col bg-white/70 backdrop-blur-2xl border-r border-white/40 shadow-[8px_0_40px_rgba(0,0,0,0.03)]">
         
         <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-indigo-500/5 via-purple-500/5 to-transparent pointer-events-none"></div>
 
-        <div class="relative z-10 flex h-24 items-center px-7 shrink-0">
+        <div class="relative z-10 flex h-24 items-center justify-between px-7 shrink-0">
             <div class="flex items-center gap-3 group">
                 <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
                     <span class="text-white font-black text-lg tracking-tighter">A</span>
@@ -62,6 +65,9 @@
                     Atheno
                 </h1>
             </div>
+            <button class="md:hidden text-gray-500 hover:text-indigo-600" onclick={toggleSidebar}>
+                 ✕
+            </button>
         </div>
 
         <nav class="relative flex-1 px-4 py-6 space-y-2 overflow-y-auto no-scrollbar">
@@ -95,9 +101,7 @@
             {/each}
         </nav>
 
-        <div class="relative z-10 p-4 shrink-0">
-            
-            {#if pendingChanges > 0}
+        <div class="relative z-10 p-4 shrink-0 pb-8 md:pb-4"> {#if pendingChanges > 0}
                 <div transition:slide class="mb-3 px-4 py-2.5 rounded-xl bg-amber-50/80 border border-amber-100 text-amber-700 text-[11px] font-bold flex items-center gap-2.5 shadow-sm backdrop-blur-sm">
                     <span class="relative flex h-2 w-2">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -107,12 +111,12 @@
                 </div>
             {/if}
 
-          <div class="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/70 to-white/40 border border-white/60 p-3 shadow-sm hover:shadow-md transition-all duration-300 hover:bg-white/80">
+            <div class="group relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/70 to-white/40 border border-white/60 p-3 shadow-sm hover:shadow-md transition-all duration-300 hover:bg-white/80">
                 
                 <div class="absolute -right-6 -top-6 h-20 w-20 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all duration-500"></div>
 
                 <div class="flex items-center gap-3 relative z-10">
-                    <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300 border border-white/20">
+                    <div class="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 border border-white/20">
                         <span class="font-bold text-sm tracking-wide">
                             {$user?.email?.[0]?.toUpperCase()}
                         </span>
@@ -122,20 +126,20 @@
                         <p class="text-xs font-extrabold text-gray-900 truncate tracking-tight">
                             {$user?.user_metadata?.full_name || 'Scholar'}
                         </p>
-                        
-                        <div class="relative h-4 w-full overflow-hidden mt-0.5">
-                            <p class="absolute top-0 left-0 w-full text-[10px] font-medium text-gray-400 truncate transition-transform duration-300 group-hover:-translate-y-full">
-                                {$user?.email}
-                            </p>
-                            
-                            <button 
-                                onclick={handleSignOut}
-                                class="absolute top-0 left-0 w-full text-[10px] font-bold text-red-500 flex items-center gap-1 transition-transform duration-300 translate-y-full group-hover:translate-y-0 hover:text-red-600"
-                            >
-                                Sign Out <span class="text-[8px]">➜</span>
-                            </button>
-                        </div>
+                        <p class="text-[10px] font-medium text-gray-400 truncate">
+                             {$user?.email}
+                        </p>
                     </div>
+
+                    <button 
+                        onclick={handleSignOut}
+                        class="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Sign Out"
+                    >
+                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                         </svg>
+                    </button>
                 </div>
             </div>
         </div>
