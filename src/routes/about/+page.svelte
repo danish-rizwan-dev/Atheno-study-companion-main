@@ -107,7 +107,7 @@
             </p>
 
             <div class="flex justify-center gap-4">
-                <Button href="https://github.com/" variant="primary" text="Follow on GitHub" target="_blank" />
+                <Button href="https://github.com/danish-rizwan-dev" variant="primary" text="Follow on GitHub" target="_blank" />
                 <Button href="/contact" variant="secondary" text="Get in Touch" class="!bg-white/10 !text-white !border-white/20 hover:!bg-white/20" />
             </div>
         </div>
