@@ -1,8 +1,13 @@
 import { mdsvex } from 'mdsvex';
-import adapter from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-node';
 
 const config = {
-	kit: { adapter: adapter() },
+	kit: { 
+		adapter: adapter({
+			out: 'build',
+			precompress: false
+		})
+	},
 	preprocess: [mdsvex()],
 	extensions: ['.svelte', '.svx']
 };
