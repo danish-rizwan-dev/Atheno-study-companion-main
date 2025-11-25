@@ -1,5 +1,5 @@
 <script>
-    import Navbar from '$lib/components/Navbar.svelte';
+    import Navbar from '$lib/components/navbar.svelte';
     import { user } from '$lib/stores/auth';
     import { supabase } from '$lib/supabase';
     import { goto } from '$app/navigation';

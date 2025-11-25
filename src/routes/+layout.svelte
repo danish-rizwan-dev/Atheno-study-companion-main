@@ -1,66 +1,53 @@
 <script>
     import '../app.css';
     import { page } from '$app/stores';
-    import Navbar from '$lib/components/navbar.svelte';
+    import { user, isLoading } from '$lib/stores/auth';
+    import { goto } from '$app/navigation';
     import Sidebar from '$lib/components/sidebar.svelte';
     import StatsFooter from '$lib/components/StatsFooter.svelte';
-    import { page as PageData } from '$app/state';
 
-    let {
-        data
-    } = $props();
+    // Public pages (no login required)
+    const publicRoutes = ['/', '/auth', '/about', '/contact'];
 
-    let { loading, user, error } = $derived(data);
-    
-    // Show sidebar only on authenticated routes except landing page
-    let showSidebar = $derived(user && $page.url.pathname !== '/');
+    $effect(() => {
+        if ($isLoading) return;
+
+        const pathname = $page.url.pathname;
+        const search = $page.url.search; // ?mode=login or ?mode=signup
+
+        const isPublic = publicRoutes.includes(pathname);
+
+        /** NOT LOGGED IN → block private pages */
+        if (!$user && !isPublic) {
+            goto('/auth?mode=login');
+        }
+
+        /** LOGGED IN → DO NOT block auth when login or signup has mode */
+        const visitingAuthWithMode =
+            pathname === '/auth' &&
+            (search.includes('mode=login') || search.includes('mode=signup'));
+
+        if ($user && pathname === '/auth' && !visitingAuthWithMode) {
+            goto('/dashboard');
+        }
+    });
+
+    /** Sidebar only on private pages after login */
+    let showSidebar = $derived(
+        $user && !publicRoutes.includes($page.url.pathname)
+    );
 </script>
 
-<svelte:head>
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="83a06199-c8e1-43be-be93-cdf1739dc15d"></script>
-    <title>{PageData.url.pathname === '/' ? "" : (PageData.url.pathname.replace('/', '').trim()).slice(0,1).toUpperCase() + (PageData.url.pathname.replace('/', '').trim()).slice(1,(PageData.url.pathname.replace('/', '').trim()).length) + " - "} Atheno</title>
-    <meta name="description" content="AI powered study companion" />
-    <meta name="title" content="Atheno" />
-
-    <!-- facebook SEO -->
-    <meta property="og:title" content="Atheno" />
-    <meta property="og:description" content="AI powered study companion application" />
-    <meta property="og:image" content="%sveltekit.assets%/favicon.png" />
-    <meta property="og:url" content="%sveltekit.url%" />
-    
-    <meta name="author" content="Danish" />
-
-    <meta name="keywords" content="AI, study, flashcards, roadmaps, companion, application" />
-
-    <meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Atheno" />
-	<meta property="og:locale" content="en_US" />
-	<meta property="og:locale:alternate" content="en_IN" />
-</svelte:head>
-
-{#if loading}
-    <div class="flex min-h-screen items-center justify-center">
-        <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600"></div>
-    </div>
-{:else if error}
-    <div class="flex min-h-screen flex-col">
-        <main class="flex-1 p-4">
-            <div class="rounded-md bg-red-50 p-4">
-                <div class="flex">
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-red-800">Error</h3>
-                        <p class="mt-2 text-sm text-red-700">{error.message}</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+{#if $isLoading}
+    <div class="flex min-h-screen items-center justify-center bg-gray-50">
+        <div class="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent"></div>
     </div>
 {:else}
-    <div class="flex min-h-screen flex-col">
-        {#if user}
+    <div class="flex min-h-screen flex-col bg-gray-50">
+        {#if showSidebar}
             <Sidebar />
             <main class="flex-1 pb-24 md:ml-64">
-                <div class="px-4 py-8">
+                <div class="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
                     <slot />
                 </div>
                 <StatsFooter />

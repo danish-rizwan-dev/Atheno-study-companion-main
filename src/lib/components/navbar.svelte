@@ -1,17 +1,16 @@
 <script>
     import { user } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
-    import { page } from '$app/stores';
     import { slide, fade } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
 
-    // --- State (Runes) ---
     let mobileOpen = $state(false);
 
+    // ✅ Correct Links for multi-page routing
     const navItems = [
-        { name: 'Features', href: '/#features' },
-        { name: 'About', href: '/#about' },
-        { name: 'Contact', href: '/#contact' }
+        { name: 'Features', href: '/#features' }, // Keeps anchor for Home
+        { name: 'About', href: '/about' },        // Points to About Page
+        { name: 'Contact', href: '/contact' }     // Points to Contact Page
     ];
 </script>
 
@@ -38,9 +37,10 @@
                 {#each navItems as item}
                     <a
                         href={item.href}
-                        class="relative text-base font-bold text-gray-600 transition-colors hover:text-indigo-600 py-2"
+                        class="relative text-base font-bold text-gray-600 transition-colors hover:text-indigo-600 py-2 group"
                     >
                         {item.name}
+                        <!-- Hover Dot (Only shows on hover) -->
                         <span class="absolute -bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-indigo-600 opacity-0 transition-all duration-300 group-hover:opacity-100"></span>
                     </a>
                 {/each}
@@ -75,7 +75,7 @@
         {#if mobileOpen}
             <div 
                 transition:slide={{ duration: 300, easing: quintOut }}
-                class="lg:hidden border-t border-white/50 bg-white/90 backdrop-blur-3xl shadow-2xl absolute w-full left-0"
+                class="lg:hidden border-t border-white/50 bg-white/90 backdrop-blur-3xl shadow-2xl absolute w-full left-0 h-screen"
             >
                 <div class="flex flex-col p-8 space-y-6">
                     {#each navItems as item}

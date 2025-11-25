@@ -3,7 +3,7 @@
     import { goto } from '$app/navigation';
     import LandingFeatureCard from "$lib/components/landingFeatureCard.svelte";
     import Button from "$lib/components/Button.svelte";
-    import Navbar from "$lib/components/Navbar.svelte";
+    import Navbar from "$lib/components/navbar.svelte";
     import { fade, fly } from 'svelte/transition';
 
     // Features Data
@@ -92,6 +92,9 @@
     <!-- ========================================== -->
     <!-- 🧠 DASHBOARD HOME (Authenticated)          -->
     <!-- ========================================== -->
+
+    <Navbar />
+
     <div class="min-h-screen p-6 md:p-10 max-w-7xl mx-auto pb-32">
         
         <!-- Ambient Glow -->

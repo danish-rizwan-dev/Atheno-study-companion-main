@@ -3,33 +3,37 @@ import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
 import { handleError } from '$lib/utils/errors';
 
-const publicRoutes = ['/', '/auth', '/share/roadmaps/[id]/view'].map(route => {
-    return route.replace('[id]', '[a-zA-Z0-9-]+');
-});
+// Public (no login needed) routes
+const publicRoutes = [
+    '/',
+    '/auth',
+    '/about',
+    '/contact',
+    '/share/roadmaps/[id]/view'
+];
 
 export const load = async ({ url, error }) => {
-    // Handle any errors passed from child routes
     if (error) {
-        return {
-            error: handleError(error)
-        };
+        return { error: handleError(error) };
     }
 
     const loadingState = get(isLoading);
     const currentUser = get(user);
-    const isPublicRoute = publicRoutes.includes(url.pathname);
+    const pathname = url.pathname;
 
-    // During loading, return loading state without redirecting
+    // Loading phase → no redirect yet
     if (loadingState) {
-        return {
-            loading: true,
-            user: currentUser // Keep any existing user data during loading
-        };
+        return { loading: true, user: currentUser };
     }
 
-    // Only redirect if we're certain the user is not authenticated and trying to access a protected route
-    if (!isPublicRoute && !currentUser && !url.pathname.startsWith('/share/roadmaps')) {
-        throw redirect(303, '/auth');  // Redirect to auth page instead of landing
+    // Check if current path is one of the public routes
+    const isPublicRoute =
+        publicRoutes.includes(pathname) ||
+        pathname.startsWith('/share/roadmaps/');
+
+    // User not logged in & path is private → redirect
+    if (!currentUser && !isPublicRoute) {
+        throw redirect(303, '/auth?mode=login');
     }
 
     return {
